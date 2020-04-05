@@ -29,7 +29,7 @@ fn is_flush(hand: [i32;5]) -> bool {
 fn is_straight(hand: [i32;5]) -> bool {
     let mut bHand = baseHand(hand);
     bHand.sort();
-
+    //still need to do this
 
 }
 
