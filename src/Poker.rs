@@ -20,15 +20,19 @@ impl PokerHand {
 pub fn deal(cards: [u32; 10]) -> [String; 5]{
 	let (mut hand1, mut hand2) = hand_cards(cards);
 	
-	println!("hand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
-	println!("hand1: {}\thand2: {}", hand1, hand2);
+	println!("\nhand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
+	println!("ranks1: {:?}\tranks2: {:?}", hand1.ranks, hand2.ranks);
+	println!("suits1: {:?}\tsuits2: {:?}", hand1.suits, hand2.suits);
 
 	sort_by_rank(&mut hand1);
 	sort_by_rank(&mut hand2);
 
 	let (type1, type2): (u32, u32) = (get_type(&hand1), get_type(&hand2));
 
-	println!("\nSORTED:\nhand1: {} type: {}\nhand2: {} type: {}", hand1, type1, hand2, type2);
+	println!("\nSORTED:\nhand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
+	println!("ranks1: {:?}\tranks2: {:?}", hand1.ranks, hand2.ranks);
+	println!("suits1: {:?}\tsuits2: {:?}", hand1.suits, hand2.suits);
+	println!("type1: {}\t\ttype2: {}", type1, type2);
 
 	let win: [String; 5] = if type1 > type2 { winner(&hand1) }
     else if type1 < type2 { winner(&hand2) }
@@ -40,7 +44,7 @@ pub fn deal(cards: [u32; 10]) -> [String; 5]{
 impl fmt::Display for PokerHand { //only for debugging
 	fn fmt( &self, f: &mut fmt::Formatter) -> fmt::Result{
 		
-		let mut c:[String; 5] = rank_suit(self);
+		let c:[String; 5] = rank_suit(self);
 		write!(f, "[{}, {}, {}, {}, {}]", c[0], c[1], c[2], c[3], c[4])
 	
 	}
@@ -82,7 +86,7 @@ fn get_type(hand: &PokerHand) -> u32 {
 
 fn is_royalFlush(hand: &PokerHand) -> bool {
 	let base: [u32; 5] = hand.ranks;
-    if base == [1, 10, 11, 12, 13]  && same_suit(&hand.suits) {return true;}
+    if base == [10, 11, 12, 13, 14]  && same_suit(&hand.suits) {return true;}
     else {return false;} 
 }
 
@@ -110,12 +114,16 @@ fn is_flush(hand: &PokerHand) -> bool {
 
 fn is_straight(hand: &PokerHand) -> bool {
 	let base: [u32; 5] = hand.ranks;
-	is_sequence(&base[..]) || base == [1, 10, 11, 12, 13]
+	is_sequence(&base[..]) || base == [2, 3, 4, 5, 14]
 }
 
 fn is_threeOfKind(hand: &PokerHand) -> bool {
     let base: [u32; 5] = hand.ranks;
-    same_rank(&base[..3]) || same_rank(&base[1..4]) || same_rank(&base[2..])
+    let uniqHand = dedup(hand);
+    if uniqHand.len() == 3 
+    && uniqHand.iter().any(|x| base.iter().filter(|y| **y==*x).count() == 3)
+    {return true;}
+    else {return false;}
 }
 
 fn is_twoPair(hand: &PokerHand) -> bool {
@@ -133,56 +141,110 @@ fn tie(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
 	match t {
 		9 => tie9(hand1, hand2),
 		8 => tie8(hand1, hand2),
-		7 => tie7(hand1, hand2),
-		6 => tie6(hand1, hand2),
-		_ => winner(hand1), //to be changed
+		6|7 => tie67(hand1, hand2),
+		4 => tie4(hand1, hand2),
+		_=> tie1(hand1, hand2),
 	}
 }
 
 //tie for Royal Flush
 fn tie9(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
-	//compares the suit of aces
-	if hand1.data[0]>hand2.data[0] {return winner(&hand1);}
-		else {return winner(&hand2);}
+	if hand1.data[4]>hand2.data[4] {return winner(&hand1);}
+	else {return winner(&hand2);}
 }
 
 //Straight Flush
 fn tie8(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let card1: u32 = get_highest_card(hand1);
+	let card2: u32 = get_highest_card(hand2);
+	let rank1: u32 = get_true_rank(card1);
+	let rank2: u32 = get_true_rank(card2);
 	let res: &PokerHand = 
-		if hand1.ranks[4] == hand2.ranks[4] {  // if all ranks are same - check suits
-			if hand1.data[4]>hand2.data[4] {hand1}
+		if rank1 == rank2 {  // if all ranks are same - check suits
+			if card1>card2 {hand1}
 			else {hand2}
 		}
-		else if hand1.ranks[4] > hand2.ranks[4] {hand1}
+		else if rank1 > rank2 {hand1}
 		else {hand2};
 	winner(res)
 }
 
-//Four of a kind
-fn tie7(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
-	let grouped1: Vec<Vec<u32>> = group_by_rank(hand1.data.clone());
-	let grouped2: Vec<Vec<u32>> = group_by_rank(hand2.data.clone());
-	if get_rank(grouped1[0][0]) > get_rank(grouped2[0][0]) {return winner(hand1);}
+//Four of a kind & Full House
+fn tie67(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let card1: u32 = get_highest_card(hand1);
+	let card2: u32 = get_highest_card(hand1);
+	if get_rank(card1) > get_rank(card2) {return winner(hand1);}
 	else {return winner(hand2);}
 }
 
-//Full House
-fn tie6(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
-	let grouped1: Vec<Vec<u32>> = group_by_rank(hand1.data.clone());
-	let grouped2: Vec<Vec<u32>> = group_by_rank(hand2.data.clone());
-	if get_rank(grouped1[0][0]) > get_rank(grouped2[0][0]) {return winner(hand1);}
-	else {return winner(hand2);}
+//Straight
+fn tie4(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let mut copy1: Vec<u32> = hand1.ranks.clone().to_vec();
+	let mut copy2: Vec<u32> = hand2.ranks.clone().to_vec();
+	if copy1[4] == 14 && copy1[3]==5 { copy1.remove(4); copy1.insert(0,1);} //moves ace to the begining if [2,3,4,5,14]
+	if copy2[4] == 14 && copy2[3]==5 { copy2.remove(4); copy2.insert(0,1);}
+	for i in (0..5).rev() {
+		if copy1[i] > copy2[i] {return winner(hand1);}
+		else if copy1[i] < copy2[i] {return winner(hand2);}
+		else {continue;}
+	}
+	tie_by_suit(hand1, hand2)
 }
 
-// fn tie_by_suit(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
-// 	let card1: u32 = get_highest_card(hand1, t);
-// 	let card2: u32 = get_highest_card(hand2, t);
-// 	if card1>card2 {return winner(hand1);}
-// 	else {return winner(hand2);}
-// }
+//Flush,HighCard
+fn tie1(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	for i in (0..5).rev() {
+		if hand1.ranks[i] > hand2.ranks[i] {return winner(hand1);}
+		else if hand1.ranks[i] < hand2.ranks[i] {return winner(hand2);}
+		else {continue;}
+	}
+	tie_by_suit(hand1, hand2)
+}
+
+fn tie_by_suit(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let card1: u32 = get_highest_card(hand1);
+	let card2: u32 = get_highest_card(hand2);
+ 	if card1>card2 {return winner(hand1);}
+ 	else {return winner(hand2);}
+}
+
+fn get_highest_card(hand: &PokerHand) -> u32{
+	match get_type(hand) {
+		8 => {
+			if hand.ranks[4] == 14 {return hand.data[3];}
+			else {return hand.data[4];}
+		}
+		6|7 => {
+			let grouped: Vec<Vec<u32>> = group_by_rank(hand.data.clone());
+			*grouped[0].iter().max().unwrap()
+		}
+		5 => {
+			hand.data[4]
+		}
+		4 => {
+			if hand.ranks[4] == 14 && hand.ranks[3] == 5 { return hand.data[3];} 
+			else {return hand.data[4];}
+		}
+		_ => {hand.data[4]}
+	}
+}
 // ---------------------------------------------------------
-fn get_rank(cardnum: u32) -> u32 {
+fn get_true_rank(cardnum: u32) -> u32{ //ace = 1 -> range [1-13]
 	(cardnum-1)%13 + 1
+}
+
+fn get_true_ranks(arr: [u32; 5]) -> [u32; 5]{
+	let mut res: [u32; 5] = [0; 5];
+	for i in 0..5 {
+		res[i] = get_true_rank(arr[i]);
+	}
+	res
+}
+
+fn get_rank(cardnum: u32) -> u32 {//ace = 14 -> range [2-14]
+	let rank = (cardnum-1)%13 + 1;
+	if rank == 1 { return 14;}
+	else { return rank; }
 }
 
 fn get_ranks(arr: [u32; 5]) -> [u32; 5]{
@@ -212,19 +274,30 @@ fn get_suits(arr: [u32; 5]) -> [String; 5]{
 
 fn rank_suit(hand: &PokerHand) -> [String; 5]{ //WORKS
 	let mut res: [String; 5] = Default::default();
+	let mut copy: [u32; 5] = hand.data.clone();
+	sort_by_true_rank(&mut copy);
+    let base: [u32; 5] = get_true_ranks(copy);
+	let suits: [String; 5] = get_suits(copy);
 	for i in 0..5 {
-		let mut rank: String = hand.ranks[i].to_string();
-		let suit = &hand.suits[i];
+		let mut rank: String = base[i].to_string();
+		let suit = &suits[i];
 		rank.push_str(suit);
 		res[i] = rank;
 	}
 	res
 }
+
+
 fn sort_by_rank(hand: &mut PokerHand) {
 	hand.data.sort();
 	hand.data.sort_by( |a, b| get_rank(*a).cmp(&get_rank(*b)));
 	hand.ranks = get_ranks(hand.data);
 	hand.suits = get_suits(hand.data);
+}
+
+fn sort_by_true_rank(arr: &mut [u32;5]) {
+	arr.sort();
+	arr.sort_by( |a, b| get_true_rank(*a).cmp(&get_true_rank(*b)));
 }
 
 fn same_suit(arr: &[String]) -> bool {//WORKS
@@ -264,9 +337,7 @@ fn group_by_rank(arr: [u32; 5]) -> Vec<Vec<u32>> { //WORKS
 	let mut res: Vec<Vec<u32>> = vec![];
 
 	for i in 0..5 {
-
 		if visited[i] == false {
-
 			let mut v: Vec<u32> = vec![];
 			v.push(arr[i]);
 			let rank: u32 = get_rank(arr[i]);
