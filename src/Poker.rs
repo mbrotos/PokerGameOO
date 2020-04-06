@@ -7,9 +7,18 @@ struct PokerHand{
 	suits: [String; 5],
 }
 
+impl PokerHand {
+	pub fn new(cards: [u32; 5]) -> PokerHand{
+		PokerHand {
+			data: cards,
+			ranks: get_ranks(cards),
+			suits: get_suits(cards),
+		}
+	}
+}
+
 pub fn deal(cards: [u32; 10]) -> [String; 5]{
 	let (mut hand1, mut hand2) = hand_cards(cards);
-	let (type1, type2): (u32, u32) = (get_type(&hand1), get_type(&hand2));
 	
 	println!("hand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
 	println!("hand1: {}\thand2: {}", hand1, hand2);
@@ -17,11 +26,14 @@ pub fn deal(cards: [u32; 10]) -> [String; 5]{
 	sort_by_rank(&mut hand1);
 	sort_by_rank(&mut hand2);
 
+	let (type1, type2): (u32, u32) = (get_type(&hand1), get_type(&hand2));
+
 	println!("\nSORTED:\nhand1: {} type: {}\nhand2: {} type: {}", hand1, type1, hand2, type2);
 
 	let win: [String; 5] = if type1 > type2 { winner(&hand1) }
     else if type1 < type2 { winner(&hand2) }
-    else { tie(&hand1, &hand2, type1) };
+	else { tie(&hand1, &hand2, type1) };
+	println!("-----------------------------------------------");
 	win
 }
 
@@ -41,13 +53,12 @@ fn hand_cards(arr: [u32;10]) -> (PokerHand, PokerHand) {
 		arr1[i] = arr[2*i];
 		arr2[i] = arr[2*i+1];
 	}
-	let hand1 = PokerHand { data: arr1, ranks: get_ranks(arr1), suits: get_suits(arr1), };
-	let hand2 = PokerHand { data: arr2, ranks: get_ranks(arr2), suits: get_suits(arr2), };
+	let hand1 = PokerHand::new(arr1);
+	let hand2 = PokerHand::new(arr2);
 	(hand1, hand2)
 }
 
 fn winner(hand: &PokerHand) -> [String; 5]{
-	//sort_by_rank(hand);
 	let s: [String; 5] = rank_suit(hand);
 	println!("\nWINNER: {:?}", s);
 	s
@@ -70,8 +81,8 @@ fn get_type(hand: &PokerHand) -> u32 {
 // ---------------------------------------------------------
 
 fn is_royalFlush(hand: &PokerHand) -> bool {
-    let base: [u32; 5] = hand.ranks;
-    if base == [1, 10, 11, 12, 13] && same_suit(&hand.suits[..]) {return true;}
+	let base: [u32; 5] = hand.ranks;
+    if base == [1, 10, 11, 12, 13]  && same_suit(&hand.suits) {return true;}
     else {return false;} 
 }
 
@@ -119,15 +130,56 @@ fn is_pair(hand: &PokerHand) -> bool {
 // ---------------------------------------------------------
 //change
 fn tie(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{	
-	winner(hand1)
+	match t {
+		9 => tie9(hand1, hand2),
+		8 => tie8(hand1, hand2),
+		7 => tie7(hand1, hand2),
+		6 => tie6(hand1, hand2),
+		_ => winner(hand1), //to be changed
+	}
 }
 
-fn tie_by_suit(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
-	let card1: u32 = get_highest_card(hand1, t);
-	let card2: u32 = get_highest_card(hand2, t);
-	if card1>card2 {return winner(hand1);}
+//tie for Royal Flush
+fn tie9(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	//compares the suit of aces
+	if hand1.data[0]>hand2.data[0] {return winner(&hand1);}
+		else {return winner(&hand2);}
+}
+
+//Straight Flush
+fn tie8(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let res: &PokerHand = 
+		if hand1.ranks[4] == hand2.ranks[4] {  // if all ranks are same - check suits
+			if hand1.data[4]>hand2.data[4] {hand1}
+			else {hand2}
+		}
+		else if hand1.ranks[4] > hand2.ranks[4] {hand1}
+		else {hand2};
+	winner(res)
+}
+
+//Four of a kind
+fn tie7(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let grouped1: Vec<Vec<u32>> = group_by_rank(hand1.data.clone());
+	let grouped2: Vec<Vec<u32>> = group_by_rank(hand2.data.clone());
+	if get_rank(grouped1[0][0]) > get_rank(grouped2[0][0]) {return winner(hand1);}
 	else {return winner(hand2);}
 }
+
+//Full House
+fn tie6(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let grouped1: Vec<Vec<u32>> = group_by_rank(hand1.data.clone());
+	let grouped2: Vec<Vec<u32>> = group_by_rank(hand2.data.clone());
+	if get_rank(grouped1[0][0]) > get_rank(grouped2[0][0]) {return winner(hand1);}
+	else {return winner(hand2);}
+}
+
+// fn tie_by_suit(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
+// 	let card1: u32 = get_highest_card(hand1, t);
+// 	let card2: u32 = get_highest_card(hand2, t);
+// 	if card1>card2 {return winner(hand1);}
+// 	else {return winner(hand2);}
+// }
 // ---------------------------------------------------------
 fn get_rank(cardnum: u32) -> u32 {
 	(cardnum-1)%13 + 1
@@ -158,7 +210,7 @@ fn get_suits(arr: [u32; 5]) -> [String; 5]{
 	res
 }
 
-fn rank_suit(hand: &PokerHand) -> [String; 5]{
+fn rank_suit(hand: &PokerHand) -> [String; 5]{ //WORKS
 	let mut res: [String; 5] = Default::default();
 	for i in 0..5 {
 		let mut rank: String = hand.ranks[i].to_string();
@@ -207,8 +259,29 @@ fn dedup(hand: &PokerHand) -> Vec<u32> {
     result
 }
 
-//change
-fn get_highest_card(hand: &PokerHand, t: u32) -> u32{
-	hand.data[0]
+fn group_by_rank(arr: [u32; 5]) -> Vec<Vec<u32>> { //WORKS
+	let mut visited: [bool; 5] = [false; 5];
+	let mut res: Vec<Vec<u32>> = vec![];
+
+	for i in 0..5 {
+
+		if visited[i] == false {
+
+			let mut v: Vec<u32> = vec![];
+			v.push(arr[i]);
+			let rank: u32 = get_rank(arr[i]);
+
+			for j in (i+1)..5 {
+				if get_rank(arr[j]) == rank {
+					visited[j] = true;
+					v.push(arr[j]);
+				}
+			}
+
+			res.push(v.clone());
+		}
+	}
+    res.sort_by( |a, b| b.len().cmp(&a.len()));
+	res
 }
 // ---------------------------------------------------------
