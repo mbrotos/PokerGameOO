@@ -1,17 +1,7 @@
 mod Poker;
 use Poker::deal;
-
-fn hand_cards(arr: [u32;10]) -> (PokerHand, PokerHand) {
-	let mut arr1: [u32; 5] = [0; 5];
-	let mut arr2: [u32; 5] = [0; 5];
-	for i in 0..5 {
-		arr1[i] = arr[2*i];
-		arr2[i] = arr[2*i+1];
-	}
-	let hand1 = PokerHand::new(arr1);
-	let hand2 = PokerHand::new(arr2);
-	(hand1, hand2)
-}
+use Poker::hand_cards;
+use Poker::winner;
 
 fn main() {
     let games = [
@@ -104,6 +94,6 @@ fn main() {
         let testWinner = deal(tup.0);
         let hands = hand_cards(tup.0);
         let realWinner = hands.winnerInt;
-        assert_eq!(testWinner, realWinner);
+        assert_eq!(testWinner, winner(realWinner));
     }
 }
