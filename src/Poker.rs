@@ -19,19 +19,12 @@ impl PokerHand {
 
 pub fn deal(cards: [u32; 10]) -> [String; 5]{
 	let (mut hand1, mut hand2) = hand_cards(cards);
-	
-	println!("\nhand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
-	println!("ranks1: {:?}\tranks2: {:?}", hand1.ranks, hand2.ranks);
-	println!("suits1: {:?}\tsuits2: {:?}", hand1.suits, hand2.suits);
 
 	sort_by_rank(&mut hand1);
 	sort_by_rank(&mut hand2);
 
 	let (type1, type2): (u32, u32) = (get_type(&hand1), get_type(&hand2));
-
-	println!("\nSORTED:\nhand1: {:?}\thand2: {:?}", hand1.data, hand2.data);
-	println!("ranks1: {:?}\tranks2: {:?}", hand1.ranks, hand2.ranks);
-	println!("suits1: {:?}\tsuits2: {:?}", hand1.suits, hand2.suits);
+	println!("hand1: {}\thand2:{}", hand1, hand2);
 	println!("type1: {}\t\ttype2: {}", type1, type2);
 
 	let win: [String; 5] = if type1 > type2 { winner(&hand1) }
@@ -143,7 +136,7 @@ fn tie(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
 		8 => tie8(hand1, hand2),
 		6|7 => tie67(hand1, hand2),
 		4 => tie4(hand1, hand2),
-		_=> tie1(hand1, hand2),
+		_=> tie0(hand1, hand2),
 	}
 }
 
@@ -172,7 +165,7 @@ fn tie8(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 //Four of a kind & Full House
 fn tie67(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	let card1: u32 = get_highest_card(hand1);
-	let card2: u32 = get_highest_card(hand1);
+	let card2: u32 = get_highest_card(hand2);
 	if get_rank(card1) > get_rank(card2) {return winner(hand1);}
 	else {return winner(hand2);}
 }
@@ -192,7 +185,7 @@ fn tie4(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 }
 
 //Flush,HighCard
-fn tie1(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+fn tie0(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	for i in (0..5).rev() {
 		if hand1.ranks[i] > hand2.ranks[i] {return winner(hand1);}
 		else if hand1.ranks[i] < hand2.ranks[i] {return winner(hand2);}
@@ -216,7 +209,10 @@ fn get_highest_card(hand: &PokerHand) -> u32{
 		}
 		6|7 => {
 			let grouped: Vec<Vec<u32>> = group_by_rank(hand.data.clone());
-			*grouped[0].iter().max().unwrap()
+			//println!("grouped:{:?}", grouped);
+			let res = *grouped[0].iter().max().unwrap();
+			//println!("returned: {}", res);
+			res
 		}
 		5 => {
 			hand.data[4]
