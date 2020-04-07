@@ -1,7 +1,7 @@
 use std::fmt;
 use std::collections::HashSet;
 
-struct PokerHand{
+pub struct PokerHand{
 	data: [u32; 5],
 	ranks: [u32; 5],
 	suits: [String; 5],
@@ -25,11 +25,12 @@ pub fn deal(cards: [u32; 10]) -> [String; 5]{
 
 	let (type1, type2): (u32, u32) = (get_type(&hand1), get_type(&hand2));
 	println!("hand1: {}\thand2:{}", hand1, hand2);
-	println!("type1: {}\t\ttype2: {}", type1, type2);
+	println!("type1: {}\t\t\ttype2: {}", type1, type2);
 
 	let win: [String; 5] = if type1 > type2 { winner(&hand1) }
     else if type1 < type2 { winner(&hand2) }
 	else { tie(&hand1, &hand2, type1) };
+	println!("WINNER: {:?}", win);
 	println!("-----------------------------------------------");
 	win
 }
@@ -43,7 +44,7 @@ impl fmt::Display for PokerHand { //only for debugging
 	}
 }
 
-fn hand_cards(arr: [u32;10]) -> (PokerHand, PokerHand) {
+pub fn hand_cards(arr: [u32;10]) -> (PokerHand, PokerHand) {
 	let mut arr1: [u32; 5] = [0; 5];
 	let mut arr2: [u32; 5] = [0; 5];
 	for i in 0..5 {
@@ -55,9 +56,9 @@ fn hand_cards(arr: [u32;10]) -> (PokerHand, PokerHand) {
 	(hand1, hand2)
 }
 
-fn winner(hand: &PokerHand) -> [String; 5]{
+pub fn winner(hand: &PokerHand) -> [String; 5]{ //remove pub
 	let s: [String; 5] = rank_suit(hand);
-	println!("\nWINNER: {:?}", s);
+//	println!("\nWINNER: {:?}", s);
 	s
 }
 
@@ -134,8 +135,9 @@ fn tie(hand1: &PokerHand, hand2: &PokerHand, t: u32) -> [String; 5]{
 	match t {
 		9 => tie9(hand1, hand2),
 		8 => tie8(hand1, hand2),
-		6|7 => tie67(hand1, hand2),
+		3|6|7 => tie367(hand1, hand2),
 		4 => tie4(hand1, hand2),
+		1|2 => tie12(hand1, hand2),
 		_=> tie0(hand1, hand2),
 	}
 }
@@ -162,8 +164,8 @@ fn tie8(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	winner(res)
 }
 
-//Four of a kind & Full House
-fn tie67(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+//Four of a Kind, Full House, Three of a Kind
+fn tie367(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	let card1: u32 = get_highest_card(hand1);
 	let card2: u32 = get_highest_card(hand2);
 	if get_rank(card1) > get_rank(card2) {return winner(hand1);}
@@ -184,7 +186,22 @@ fn tie4(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	tie_by_suit(hand1, hand2)
 }
 
-//Flush,HighCard
+//Two Pair
+fn tie12(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
+	let grouped1: Vec<Vec<u32>> = group_by_rank(hand1.data.clone());
+	let grouped2: Vec<Vec<u32>> = group_by_rank(hand2.data.clone());
+
+	for i in 0..grouped1.len() {
+		if get_rank(grouped1[i][0]) > get_rank(grouped2[i][0]) {return winner(hand1);}
+		else if get_rank(grouped1[i][0]) < get_rank(grouped2[i][0]) {return winner(hand2);}
+		else {continue};
+	}
+
+	tie_by_suit(hand1, hand2)
+
+}
+
+//Flush, HighCard
 fn tie0(hand1: &PokerHand, hand2: &PokerHand) -> [String; 5]{
 	for i in (0..5).rev() {
 		if hand1.ranks[i] > hand2.ranks[i] {return winner(hand1);}
@@ -207,20 +224,24 @@ fn get_highest_card(hand: &PokerHand) -> u32{
 			if hand.ranks[4] == 14 {return hand.data[3];}
 			else {return hand.data[4];}
 		}
-		6|7 => {
+		1|2|3|6|7 => {
 			let grouped: Vec<Vec<u32>> = group_by_rank(hand.data.clone());
-			//println!("grouped:{:?}", grouped);
 			let res = *grouped[0].iter().max().unwrap();
 			//println!("returned: {}", res);
 			res
-		}
-		5 => {
-			hand.data[4]
 		}
 		4 => {
 			if hand.ranks[4] == 14 && hand.ranks[3] == 5 { return hand.data[3];} 
 			else {return hand.data[4];}
 		}
+		// 2 => {
+		// 	let grouped: Vec<Vec<u32>> = group_by_rank(hand.data.clone());
+		// 	*grouped[0].iter().max().unwrap()
+		// 	// if get_rank(grouped[0][0]) > get_rank(grouped[1][0]) {
+		// 	// 	return *grouped[0].iter().max().unwrap();
+		// 	// }
+		// 	// else { return *grouped[1].iter().max().unwrap();}
+		// }
 		_ => {hand.data[4]}
 	}
 }
@@ -348,7 +369,27 @@ fn group_by_rank(arr: [u32; 5]) -> Vec<Vec<u32>> { //WORKS
 			res.push(v.clone());
 		}
 	}
-    res.sort_by( |a, b| b.len().cmp(&a.len()));
+	res.sort_by( |a, b| b.len().cmp(&a.len()));
+
+	let mut start: usize = 0;
+	let mut i: usize = 1;
+	while i<res.len(){
+		if res[i].len() != res[start].len() {
+			res[start..i].sort_by( |a, b| get_rank(b[0]).cmp(&get_rank(a[0])));
+			//println!("{:?}", res);
+			start = i;
+		}
+		i = i+1;
+	}
+	res[start..i].sort_by( |a, b| get_rank(b[0]).cmp(&get_rank(a[0])));
+	//used for two pair
+	// if res[0].len() == res[1].len() && get_rank(res[0][0]) < get_rank(res[1][0]){
+	// 	let mut temp: Vec<u32> = res[0].clone();
+	// 	res.remove(0);
+	// 	res.insert(1, temp);
+	// }
+	
+//	println!("grouped: {:?}", res);
 	res
 }
 // ---------------------------------------------------------
