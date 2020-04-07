@@ -1,6 +1,15 @@
 mod Poker;
 use Poker::deal;
 
+fn hand_cards(arr: [u32;10]) -> ([u32; 5], [u32; 5]) {
+    let mut arr1: [u32; 5] = [0; 5];
+    let mut arr2: [u32; 5] = [0; 5];
+    for i in 0..5 {
+        arr1[i] = arr[2*i];
+        arr2[i] = arr[2*i+1];
+    }
+    (arr1, arr2)
+}
 
 fn main() {
     let games = [
@@ -90,6 +99,10 @@ fn main() {
     for tup in games.iter() {
 
         let winner = deal(tup.0);
-        
+        let hands = hand_cards(tup.0);
+        if winner == hands[tup.(1-1)]
+        {
+            print!("True");
+        }
     }
 }
